@@ -1,0 +1,17 @@
+python3 -m venv venv
+source venv/bin/activate
+
+pip install pandas nltk spacy scikit-learn gensim matplotlib wordcloud jupyter
+
+pip freeze > requirements.txt
+
+git add . 
+git commit -m "<commit description> 
+git push 
+
+pip install pandas numpy matplotlib seaborn scikit-learn nltk spacy
+
+# springt 3 commits zurück
+git reset --hard HEAD~3
+
+git rm -r --cached data/
