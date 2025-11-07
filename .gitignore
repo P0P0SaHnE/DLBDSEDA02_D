@@ -2,3 +2,4 @@ venv/
 venv/lib/
 costumer_complain_data/
 Notes.txt
+.DS_Store
