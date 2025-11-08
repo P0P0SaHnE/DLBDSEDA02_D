@@ -14,8 +14,8 @@ tqdm.pandas()
 # VARIABLES --------------------------------------------------------------------------------------------------------------------
 
 corpus_dataframe = pd.read_csv("costumer_complain_data/consumer_complaints.csv") # define the datafile
-complaint_narrative = "consumer_complaint_narrative" # index in the corpus dataframe that is important
-relevant_columns = ["product", "issue","sub_issue", "consumer_complaint_narrative"] # define relevant columns in the dataframe
+complaint_narrative = "consumer_complaint_narrative" # define columne in the dataframe that is important
+relevant_columns = ["product", "issue","sub_issue", "consumer_complaint_narrative"] # define all relevant columns in the dataframe
 try:
     stop_words = set(stopwords.words('english'))
 except LookupError:
@@ -28,15 +28,16 @@ nlp = spacy.load("en_core_web_sm")
 
 def clean_text(text):
     text = text.lower()
-    text = re.sub(r'[^a-z\s]', '', text)  # replace everything that is not letter from a - z or blankspace with nothing
-    
+    text = text.replace('xxxx', '').replace('xx', '') # remove xxxx from vocabs
+    text = re.sub(r'[^a-z\s]', '', text).strip()  # replace everything that is not letter from a - z or blankspace with nothing
+
     words = text.split()
     cleaned_words = []
     for word in words:
         if word not in stop_words:
             cleaned_words.append(word)
     text = ' '.join(cleaned_words)
-    #text = ' '.join([word for word in text.split() if word not in stop_words])
+
     return text
 
 
@@ -51,6 +52,11 @@ def lemmatize_text(text):
     lemmatized_text = " ".join(lemmatized_tokens)
 
     return lemmatized_text
+
+
+def build_final_text(row):
+    extras = ' '.join(str(x).lower() for x in [row["product"], row["issue"], row["sub_issue"]] if pd.notna(x))
+    return extras + " " + row["lemma_text"]
 
 
 # MAIN -------------------------------------------------------------------------------------------------------------------------
@@ -83,21 +89,22 @@ corpus_dataframe["clean_text"] = corpus_dataframe[complaint_narrative].progress_
 
 print(corpus_dataframe.sample(10, random_state=42),"\n")
 
-
 # tokenizing, lemmatizing -------------------------------------------------------------------------------------------------------
 
 print("\n> Phase 3: Tokenizing & Lemmatize <")
 print("--------------------------\n")
 
-#corpus_dataframe["lemma_text"] = corpus_dataframe["clean_text"].progress_apply(lemmatize_text)
+# try to skip the lammatize process with existing lemma file
+try:
+    corpus_dataframe = pd.read_csv("lemma_text.csv")
 
-texts = corpus_dataframe["clean_text"].tolist()
-lemmatized_texts = []
-
-for doc in tqdm(nlp.pipe(texts, batch_size=50, n_process=4), total=len(texts), desc="Lemmatizing"):
-    lemmas = " ".join([token.lemma_ for token in doc if not token.is_stop and token.is_alpha])
-    lemmatized_texts.append(lemmas)
-
-corpus_dataframe["lemma_text"] = lemmatized_texts
+except:
+    corpus_dataframe["lemma_text"] = corpus_dataframe["clean_text"].progress_apply(lemmatize_text)
+    corpus_dataframe.to_csv("lemma_text.csv", index=False)
 
 print(corpus_dataframe.sample(10, random_state=42),"\n")
+
+corpus_dataframe["final_text"] = corpus_dataframe.progress_apply(build_final_text, axis=1)
+
+corpus_dataframe.to_csv("cleaned_complaints.csv", index=False)
+
