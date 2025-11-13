@@ -54,8 +54,8 @@ def clean_text(text):
 def lemmatize_text(text):
 # lemmatization
     lemmatized_tokens = []
-    doc = nlp(text)
-    for token in doc:
+    text = nlp(text)
+    for token in text:
         if not token.is_stop:
             lemma = token.lemma_
             lemmatized_tokens.append(lemma)
@@ -65,11 +65,9 @@ def lemmatize_text(text):
     return lemmatized_text
 
 
-def build_final_text(row):
-    extras = ' '.join(
-        str(x).lower() for x in [row["product"], row["issue"], row["sub_issue"]] if pd.notna(x)
-    )
-    return extras + " " + row["lemma_text"]
+#def build_final_text(row):
+#    extras = ' '.join(str(x).lower() for x in [row["product"], row["issue"], row["sub_issue"]] if pd.notna(x))
+ #   return extras + " " + row["lemma_text"]
 
 
 # MAIN -------------------------------------------------------------------------------------------------------------------------
@@ -102,6 +100,7 @@ corpus_dataframe["clean_text"] = corpus_dataframe[complaint_narrative].progress_
 print("\nExample of 10 rows after Text Cleaning:\n")
 print(corpus_dataframe.sample(20, random_state=42),"\n")
 
+
 # tokenizing, lemmatizing -------------------------------------------------------------------------------------------------------
 
 print("\n> Phase 3: Tokenizing & Lemmatize <")
@@ -113,6 +112,11 @@ try:
 
 except:
     corpus_dataframe["lemma_text"] = corpus_dataframe["clean_text"].progress_apply(lemmatize_text)
+
+    corpus_dataframe = corpus_dataframe[corpus_dataframe["lemma_text"].str.len() > 0]   # remove with empty fields
+    corpus_dataframe = corpus_dataframe[corpus_dataframe["lemma_text"].str.strip() != ""] # remove rows with blankspaces
+    corpus_dataframe = corpus_dataframe.reset_index(drop=True)  # reindexing after removing
+
     corpus_dataframe.to_csv(
     "lemma_text.csv",
     index=False,
@@ -122,11 +126,19 @@ except:
 
 print(corpus_dataframe.sample(10, random_state=42),"\n")
 
-corpus_dataframe["final_text"] = corpus_dataframe.progress_apply(build_final_text, axis=1)
+#corpus_dataframe["final_text"] = corpus_dataframe.progress_apply(build_final_text, axis=1)
+
+corpus_dataframe.to_csv(
+    "final_text.csv",
+    index=False,
+    quoting=csv.QUOTE_ALL,
+    lineterminator="\n"
+)
+
 
 # bow vectorization -------------------------------------------------------------------------------------------------------------
 
-texts = corpus_dataframe["final_text"]  # oder "lemma_text", wenn du Punkt 4 nicht machst
+texts = corpus_dataframe["lemma_text"]
 
 bow_vectorizer = CountVectorizer(
     max_df=0.9,
@@ -135,10 +147,20 @@ bow_vectorizer = CountVectorizer(
 )
 X_bow = bow_vectorizer.fit_transform(texts)
 
+print("BoW\n")
+print("\n",X_bow,"\n")
+
+# tf-idf vektorization -----------------------------------------------------------------------------------------------------------
+
 tfidf_vectorizer = TfidfVectorizer(
     max_df=0.9,
     min_df=5,
     ngram_range=(1,1)
 )
 X_tfidf = tfidf_vectorizer.fit_transform(texts)
+
+print("TF-IDF\n")
+print(X_tfidf,"\n")
+
+#
 
