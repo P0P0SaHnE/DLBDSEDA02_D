@@ -1,14 +1,16 @@
 # MODULES ----------------------------------------------------------------------------------------------------------------------
 
 import pandas as pd
+import numpy as np
+import os
 import csv
 import re
 import nltk
 import spacy
 from nltk.corpus import stopwords
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from tqdm import tqdm   #
 tqdm.pandas()
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
 # VARIABLES --------------------------------------------------------------------------------------------------------------------
@@ -72,48 +74,58 @@ def lemmatize_text(text):
 
 # MAIN -------------------------------------------------------------------------------------------------------------------------
 
-print("\n--------------------------------------------------------------------------------------------------------")
+print("\033[32m\n--------------------------------------------------------------------------------------------------------")
 print("##         This is the Project for the IU Modul DLBDSEDA02_D with the topic of Data Analysis.         ##")
-print("--------------------------------------------------------------------------------------------------------\n")
+print("--------------------------------------------------------------------------------------------------------\n\033[0m")
 print(f"\nThe used Dataframe have {corpus_dataframe.shape[0]} rows and {corpus_dataframe.shape[1]} columns.\n")
 
 
 # remove rows with empty value in complaint_narrative, duplicates & irrelevant columns -----------------------------------------
 
-print("\n> Phase 1: Prepare the Dataframe <")
-print("----------------------------------\n")
+print("\033[32m\n> Phase 1: Prepare the Dataframe <")
+print("----------------------------------\n\033[0m")
+print("\t- Remove the unused Columns\n\t- Remove all rows with empty Fields in narrative\n\t- Remove duplicate Rows\n")
+
 
 corpus_dataframe = corpus_dataframe[relevant_columns]   # remove all unuser columns
 corpus_dataframe = corpus_dataframe.dropna(subset=[complaint_narrative])    # remove all rows with empty field in complaint_narrative
 corpus_dataframe = corpus_dataframe.drop_duplicates()   # remove duplicate rows
 
-print(f"\nThe Dataframe have {corpus_dataframe.shape[0]} rows and {corpus_dataframe.shape[1]} columns after the preparation.\n")
+print(f"The Dataframe have {corpus_dataframe.shape[0]} rows and {corpus_dataframe.shape[1]} columns after the preparation.\n")
 
 
 # text cleaning ----------------------------------------------------------------------------------------------------------------
 
-print("\n> Phase 2: Text Cleaning <")
-print("--------------------------\n")
+print("\033[32m\n> Phase 2: Text Cleaning <")
+print("--------------------------\n\033[0m")
 
-corpus_dataframe["clean_text"] = corpus_dataframe[complaint_narrative].progress_apply(clean_text) 
+if os.path.exists("lemma_text.csv"):
+    print("Existing cleaned Text found! - Text Cleaning \033[31mSKIPPED\033[0m")
 
-print("\nExample of 10 rows after Text Cleaning:\n")
-print(corpus_dataframe.sample(20, random_state=42),"\n")
+else:
+    print("\t- All letters in lower characters\n\t- Remove all X's in Text\n\t- Remove everything except a - z and white spaces\n\t- Remove Stop Words\n")
+    print("Added new column with cleaned Text.\n")
+
+    corpus_dataframe["clean_text"] = corpus_dataframe[complaint_narrative].progress_apply(clean_text) 
 
 
 # tokenizing, lemmatizing -------------------------------------------------------------------------------------------------------
 
-print("\n> Phase 3: Tokenizing & Lemmatize <")
-print("-----------------------------------\n")
+print("\033[32m\n\n> Phase 3: Tokenizing & Lemmatize <")
+print("-----------------------------------\n\033[0m")
 
 # try to skip the lammatize process with existing lemma file
 try:
     corpus_dataframe = pd.read_csv("lemma_text.csv")
+    print("Existing Lemma File found! - Lemmatization \033[31mSKIPPED\033[0m")
 
 except:
+    print("No existing Lemma File found!\n")
+    print("\t- Reduction of inflected words to their common root\n")
+
     corpus_dataframe["lemma_text"] = corpus_dataframe["clean_text"].progress_apply(lemmatize_text)
 
-    corpus_dataframe = corpus_dataframe[corpus_dataframe["lemma_text"].str.len() > 0]   # remove with empty fields
+    corpus_dataframe = corpus_dataframe[corpus_dataframe["lemma_text"].str.len() > 0]   # remove rows with empty fields
     corpus_dataframe = corpus_dataframe[corpus_dataframe["lemma_text"].str.strip() != ""] # remove rows with blankspaces
     corpus_dataframe = corpus_dataframe.reset_index(drop=True)  # reindexing after removing
 
@@ -123,8 +135,8 @@ except:
     quoting=csv.QUOTE_ALL,
     lineterminator="\n"
 )
+    print("\nNew Lemma File \033[32mCREATED\033[0m")
 
-print(corpus_dataframe.sample(10, random_state=42),"\n")
 
 #corpus_dataframe["final_text"] = corpus_dataframe.progress_apply(build_final_text, axis=1)
 
@@ -136,31 +148,70 @@ corpus_dataframe.to_csv(
 )
 
 
-# bow vectorization -------------------------------------------------------------------------------------------------------------
+# vectorization -------------------------------------------------------------------------------------------------------------
 
-texts = corpus_dataframe["lemma_text"]
+print("\033[32m\n\n> Phase 4: Vectorization <")
+print("--------------------------\n\033[0m")
 
-bow_vectorizer = CountVectorizer(
+lemma_texts = corpus_dataframe["lemma_text"]
+
+bow = CountVectorizer(
+    max_df=0.9, # ignore extermly frequent words that have frequency by x%
+    min_df=5,   # ignore rare words, has to exist in x files 
+    ngram_range=(1,1)   # define n-gram (1,2 = unigram & bigram)
+)
+bow_vector = bow.fit_transform(lemma_texts) # create the bow vector
+
+tfidf = TfidfVectorizer(
     max_df=0.9,
     min_df=5,
     ngram_range=(1,1)
 )
-X_bow = bow_vectorizer.fit_transform(texts)
+tfidf_vector = tfidf.fit_transform(lemma_texts)     # create the tf-idf vector
 
-print("BoW\n")
-print("\n",X_bow,"\n")
+#bow vectorization ----------------------------------------------------------------------------------------------------------
 
-# tf-idf vektorization -----------------------------------------------------------------------------------------------------------
-
-tfidf_vectorizer = TfidfVectorizer(
-    max_df=0.9,
-    min_df=5,
-    ngram_range=(1,1)
+'''
+bow_array = pd.DataFrame(
+    bow_vector.toarray(),
+    columns=bow.get_feature_names_out()
 )
-X_tfidf = tfidf_vectorizer.fit_transform(texts)
 
-print("TF-IDF\n")
-print(X_tfidf,"\n")
+print("\nBoW Vector:\n")
+print("\n",bow_array,"\n")
+'''
 
-#
+# tf-idf vektorization -----------------------------------------------------------------------------------------------------
 
+'''
+tfidf_array = pd.DataFrame(
+    tfidf_vector.toarray(),
+    columns=tfidf.get_feature_names_out()
+)
+
+print("\nTF-IDF Vector:\n")
+print("\n",tfidf_array,"\n")
+'''
+
+# compare the bow & tf-idf vectors -----------------------------------------------------------------------------------------------
+
+print("\n############## BoW ##################\n")
+
+word_counts = bow_vector.toarray().sum(axis=0)   # 
+feature_names = bow.get_feature_names_out()
+
+top_indices = np.argsort(word_counts)[::-1]   # sort highest first
+
+for idx in top_indices[:20]:  # top 20 words
+    print(feature_names[idx], word_counts[idx])
+
+
+print("\n############## TF-IDF ##################\n")
+
+tfidf_scores = tfidf_vector.toarray().sum(axis=0)
+feature_names = tfidf.get_feature_names_out()
+
+top_indices = np.argsort(tfidf_scores)[::-1]
+
+for idx in top_indices[:20]:
+    print(feature_names[idx], tfidf_scores[idx])
