@@ -9,11 +9,12 @@ import nltk
 import spacy
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from tqdm import tqdm   #
+from sklearn.decomposition import LatentDirichletAllocation, NMF
+from tqdm import tqdm
 tqdm.pandas()
 
 
-# VARIABLES --------------------------------------------------------------------------------------------------------------------
+# GLOBAL VARIABLES --------------------------------------------------------------------------------------------------------------------
 
 corpus_dataframe = pd.read_csv(     
     "costumer_complain_data/consumer_complaints.csv",   # define the datafile
@@ -29,8 +30,9 @@ try:
     stop_words = set(stopwords.words('english'))    # download if stopwords not found
 except LookupError:
     nltk.download('stopwords')
-    stop_words = set(stopwords.words('english'))
-nlp = spacy.load("en_core_web_sm")  # load the language modell for "english"
+nlp = spacy.load("en_core_web_sm")  # load the language model
+vector_best_words = 25 # define output for most words in vector
+topic_quantity = 10 # define topic quantity
 
 
 # FUNCTIONS ------------------------------------------------------------------------------------------------------------------
@@ -55,8 +57,9 @@ def clean_text(text):
 
 def lemmatize_text(text):
 # lemmatization
+
     lemmatized_tokens = []
-    text = nlp(text)
+    text = nlp(text)    # process text in language model 
     for token in text:
         if not token.is_stop:
             lemma = token.lemma_
@@ -67,9 +70,13 @@ def lemmatize_text(text):
     return lemmatized_text
 
 
-#def build_final_text(row):
-#    extras = ' '.join(str(x).lower() for x in [row["product"], row["issue"], row["sub_issue"]] if pd.notna(x))
- #   return extras + " " + row["lemma_text"]
+def display_topics(model, feature_names, n_top_words=10):
+# print the topics
+    for topic_idx, topic in enumerate(model.components_):
+        print(f"\nTopic {topic_idx}:")
+        print(" ".join([feature_names[i] for i in topic.argsort()[:-n_top_words - 1:-1]]))
+
+display_topics(lda, bow.get_feature_names_out())
 
 
 # MAIN -------------------------------------------------------------------------------------------------------------------------
@@ -84,14 +91,20 @@ print(f"\nThe used Dataframe have {corpus_dataframe.shape[0]} rows and {corpus_d
 
 print("\033[32m\n> Phase 1: Prepare the Dataframe <")
 print("----------------------------------\n\033[0m")
-print("\t- Remove the unused Columns\n\t- Remove all rows with empty Fields in narrative\n\t- Remove duplicate Rows\n")
+
+if os.path.exists("lemma_text.csv"):
+    print("Prepared Dataframe found! - Data Preparation \033[31mSKIPPED\033[0m")
+
+else:
+
+    print("\t- Remove the unused Columns\n\t- Remove all rows with empty Fields in narrative\n\t- Remove duplicate Rows\n")
 
 
-corpus_dataframe = corpus_dataframe[relevant_columns]   # remove all unuser columns
-corpus_dataframe = corpus_dataframe.dropna(subset=[complaint_narrative])    # remove all rows with empty field in complaint_narrative
-corpus_dataframe = corpus_dataframe.drop_duplicates()   # remove duplicate rows
+    corpus_dataframe = corpus_dataframe[relevant_columns]   # remove all unused columns
+    corpus_dataframe = corpus_dataframe.dropna(subset=[complaint_narrative])    # remove all rows with empty field in complaint_narrative
+    corpus_dataframe = corpus_dataframe.drop_duplicates()   # remove duplicate rows
 
-print(f"The Dataframe have {corpus_dataframe.shape[0]} rows and {corpus_dataframe.shape[1]} columns after the preparation.\n")
+    print(f"The Dataframe have {corpus_dataframe.shape[0]} rows and {corpus_dataframe.shape[1]} columns after the preparation.\n")
 
 
 # text cleaning ----------------------------------------------------------------------------------------------------------------
@@ -137,17 +150,6 @@ except:
 )
     print("\nNew Lemma File \033[32mCREATED\033[0m")
 
-
-#corpus_dataframe["final_text"] = corpus_dataframe.progress_apply(build_final_text, axis=1)
-
-corpus_dataframe.to_csv(
-    "final_text.csv",
-    index=False,
-    quoting=csv.QUOTE_ALL,
-    lineterminator="\n"
-)
-
-
 # vectorization -------------------------------------------------------------------------------------------------------------
 
 print("\033[32m\n\n> Phase 4: Vectorization <")
@@ -155,12 +157,12 @@ print("--------------------------\n\033[0m")
 
 lemma_texts = corpus_dataframe["lemma_text"]
 
-bow = CountVectorizer(
+bow = CountVectorizer(  # define bow parameters
     max_df=0.9, # ignore extermly frequent words that have frequency by x%
     min_df=5,   # ignore rare words, has to exist in x files 
     ngram_range=(1,1)   # define n-gram (1,2 = unigram & bigram)
 )
-bow_vector = bow.fit_transform(lemma_texts) # create the bow vector
+bow_vector = bow.fit_transform(lemma_texts) # create the bow vector & box dictionary
 
 tfidf = TfidfVectorizer(
     max_df=0.9,
@@ -169,49 +171,69 @@ tfidf = TfidfVectorizer(
 )
 tfidf_vector = tfidf.fit_transform(lemma_texts)     # create the tf-idf vector
 
-#bow vectorization ----------------------------------------------------------------------------------------------------------
-
-'''
-bow_array = pd.DataFrame(
-    bow_vector.toarray(),
-    columns=bow.get_feature_names_out()
-)
-
-print("\nBoW Vector:\n")
-print("\n",bow_array,"\n")
-'''
-
-# tf-idf vektorization -----------------------------------------------------------------------------------------------------
-
-'''
-tfidf_array = pd.DataFrame(
-    tfidf_vector.toarray(),
-    columns=tfidf.get_feature_names_out()
-)
-
-print("\nTF-IDF Vector:\n")
-print("\n",tfidf_array,"\n")
-'''
 
 # compare the bow & tf-idf vectors -----------------------------------------------------------------------------------------------
 
-print("\n############## BoW ##################\n")
+print(f"Bow Vector (Most {vector_best_words} Words):\n")
 
-word_counts = bow_vector.toarray().sum(axis=0)   # 
-feature_names = bow.get_feature_names_out()
+word_counts = bow_vector.toarray().sum(axis=0)   # convert to np array and summarize it for every columne
+feature_names = bow.get_feature_names_out() # get vocabs from the bow dictionary
 
-top_indices = np.argsort(word_counts)[::-1]   # sort highest first
+top_indices = np.argsort(word_counts)[::-1]   # sort word_counts descending
 
-for idx in top_indices[:20]:  # top 20 words
-    print(feature_names[idx], word_counts[idx])
+print("Number\t  Feature Name\t  Word Count ")
+print("--------------------------------------")
+number = 1
+for dict_id in top_indices[:vector_best_words]:  # top "vector_best_words" words
+    print("{:<10}{:<16}{:<10}".format(number,feature_names[dict_id],word_counts[dict_id]))
+    number += 1
 
 
-print("\n############## TF-IDF ##################\n")
+print(f"\n\nTF-IDF Vector (Most {vector_best_words} Words):\n")
 
 tfidf_scores = tfidf_vector.toarray().sum(axis=0)
 feature_names = tfidf.get_feature_names_out()
 
 top_indices = np.argsort(tfidf_scores)[::-1]
 
-for idx in top_indices[:20]:
-    print(feature_names[idx], tfidf_scores[idx])
+print("Number\t  Feature Name\t  TF-IDF value")
+print("---------------------------------------------")
+number = 1
+for dict_id in top_indices[:vector_best_words]:
+    print("{:<10}{:<16}{:<10}".format(number,feature_names[dict_id], tfidf_scores[dict_id]))
+    number += 1
+
+
+
+
+
+
+
+# topic analysis ------------------------------------------------------------------------------------------------------
+
+print("\033[32m\n\n> Phase 5: Topic Analysis <")
+print("---------------------------\n\033[0m")
+
+# LDA = Latent Dirichlet Allocation
+# NMF = Non-Negative Matrix Factorization
+
+
+lda = LatentDirichletAllocation(    #define the lda parameters
+    topic_quantity,
+    random_state=42
+)
+
+
+
+lda.fit(bow_vector)
+
+
+# 2) define nfm modell 
+nmf = NMF(
+    topic_quantity,  
+    random_state=42
+)
+nmf.fit(tfidf_vector)
+
+# 3) Topics show
+display_topics(nmf, tfidf.get_feature_names_out())
