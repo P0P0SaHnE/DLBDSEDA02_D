@@ -7,17 +7,19 @@ import csv
 import re
 import nltk
 import spacy
+import warnings
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.decomposition import LatentDirichletAllocation, NMF
 from tqdm import tqdm
 tqdm.pandas()
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 # GLOBAL VARIABLES --------------------------------------------------------------------------------------------------------------------
-
+'''
 corpus_dataframe = pd.read_csv(     
-    "costumer_complain_data/consumer_complaints.csv",   # define the datafile
+    "costumer_complain_data/consumer_complaints.csv",   # define the datafile 
     sep=",",                 # choose seperator
     quotechar='"',           # character start and end of quoted field
     engine="python",         # python parser
@@ -33,7 +35,25 @@ except LookupError:
 nlp = spacy.load("en_core_web_sm")  # load the language model
 vector_best_words = 25 # define output for most words in vector
 topic_quantity = 10 # define topic quantity
+'''
 
+corpus_dataframe = pd.read_csv(     
+    "costumer_complain_data/complaints_processed.csv",   # define the datafile 
+    sep=",",                 # choose seperator
+    quotechar='"',           # character start and end of quoted field
+    engine="python",         # python parser
+    on_bad_lines="warn",     # warn at bad line interpretation
+)
+
+complaint_narrative = "narrative"    # define columne in the dataframe that is important
+relevant_columns = ["product", "narrative"]     # define all relevant columns in the dataframe
+try:
+    stop_words = set(stopwords.words('english'))    # download if stopwords not found
+except LookupError:
+    nltk.download('stopwords')
+nlp = spacy.load("en_core_web_sm")  # load the language model
+vector_best_words = 25 # define output for most words in vector
+topic_quantity = 10 # define topic quantity
 
 # FUNCTIONS ------------------------------------------------------------------------------------------------------------------
 
@@ -72,11 +92,11 @@ def lemmatize_text(text):
 
 def display_topics(model, feature_names, n_top_words=10):
 # print the topics
-    for topic_idx, topic in enumerate(model.components_):
-        print(f"\nTopic {topic_idx}:")
-        print(" ".join([feature_names[i] for i in topic.argsort()[:-n_top_words - 1:-1]]))
 
-display_topics(lda, bow.get_feature_names_out())
+    for topic_idx, topic in enumerate(model.components_):
+        print(f"\n\033[35m>\033[0m Topic {topic_idx+1}:")
+        print ("-----------")
+        print(" "," ".join([feature_names[i] for i in topic.argsort()[:-n_top_words - 1:-1]]),"\n")
 
 
 # MAIN -------------------------------------------------------------------------------------------------------------------------
@@ -109,7 +129,7 @@ else:
 
 # text cleaning ----------------------------------------------------------------------------------------------------------------
 
-print("\033[32m\n> Phase 2: Text Cleaning <")
+print("\033[32m\n\n> Phase 2: Text Cleaning <")
 print("--------------------------\n\033[0m")
 
 if os.path.exists("lemma_text.csv"):
@@ -174,7 +194,7 @@ tfidf_vector = tfidf.fit_transform(lemma_texts)     # create the tf-idf vector
 
 # compare the bow & tf-idf vectors -----------------------------------------------------------------------------------------------
 
-print(f"Bow Vector (Most {vector_best_words} Words):\n")
+print(f"\033[35mBag of Words - Vector (Most {vector_best_words} Words):\033[0m\n") # BoW
 
 word_counts = bow_vector.toarray().sum(axis=0)   # convert to np array and summarize it for every columne
 feature_names = bow.get_feature_names_out() # get vocabs from the bow dictionary
@@ -183,13 +203,14 @@ top_indices = np.argsort(word_counts)[::-1]   # sort word_counts descending
 
 print("Number\t  Feature Name\t  Word Count ")
 print("--------------------------------------")
+
 number = 1
 for dict_id in top_indices[:vector_best_words]:  # top "vector_best_words" words
-    print("{:<10}{:<16}{:<10}".format(number,feature_names[dict_id],word_counts[dict_id]))
+    print("{:<10}{:<16}{:<10}".format(number,feature_names[dict_id],word_counts[dict_id]))  # print a table with results
     number += 1
 
 
-print(f"\n\nTF-IDF Vector (Most {vector_best_words} Words):\n")
+print(f"\n\n\033[35mTerm Frequency-Inverse Document Frequency - Vector (Most {vector_best_words} Words):\033[0m\n")    #TF-IDF
 
 tfidf_scores = tfidf_vector.toarray().sum(axis=0)
 feature_names = tfidf.get_feature_names_out()
@@ -198,42 +219,41 @@ top_indices = np.argsort(tfidf_scores)[::-1]
 
 print("Number\t  Feature Name\t  TF-IDF value")
 print("---------------------------------------------")
+
 number = 1
 for dict_id in top_indices[:vector_best_words]:
     print("{:<10}{:<16}{:<10}".format(number,feature_names[dict_id], tfidf_scores[dict_id]))
     number += 1
 
 
-
-
-
-
-
 # topic analysis ------------------------------------------------------------------------------------------------------
 
 print("\033[32m\n\n> Phase 5: Topic Analysis <")
 print("---------------------------\n\033[0m")
+'''
+lemma_texts = corpus_dataframe["lemma_text"]
 
-# LDA = Latent Dirichlet Allocation
-# NMF = Non-Negative Matrix Factorization
+bow = CountVectorizer(max_df=0.9, min_df=5,ngram_range=(1,2))   # define bigramm
+bow_vector = bow.fit_transform(lemma_texts) # new bow vector with bigramms'''
 
-
-lda = LatentDirichletAllocation(    #define the lda parameters
+lda = LatentDirichletAllocation(    # define the lda parameters
     topic_quantity,
     random_state=42
 )
 
+lda.fit(bow_vector) # train the model with bow vector
+print(f"\033[35mLatent Dirichlet Allocation - Topic Analysis:\033[0m") # LDA
+
+display_topics(lda, bow.get_feature_names_out(),8)    # print the lda results
 
 
-lda.fit(bow_vector)
-
-
-# 2) define nfm modell 
-nmf = NMF(
+nmf = NMF(  # define nfm modell 
     topic_quantity,  
     random_state=42
 )
-nmf.fit(tfidf_vector)
 
-# 3) Topics show
-display_topics(nmf, tfidf.get_feature_names_out())
+nmf.fit(tfidf_vector)   # train the model with tf-idf vector
+
+print(f"\033[35m\nNon-Negative Matrix Factorization - Topic Analysis:\033[0m") # NMF
+
+display_topics(nmf, tfidf.get_feature_names_out(),8)    # print the nmf results
