@@ -17,43 +17,27 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 # GLOBAL VARIABLES --------------------------------------------------------------------------------------------------------------------
-'''
+
 corpus_dataframe = pd.read_csv(     
-    "costumer_complain_data/consumer_complaints.csv",   # define the datafile 
+    "costumer_complain_data/consumer_complaints.csv",   # DEFINE THE FILE !!!
     sep=",",                 # choose seperator
     quotechar='"',           # character start and end of quoted field
     engine="python",         # python parser
     on_bad_lines="warn",     # warn at bad line interpretation
 )
 
-complaint_narrative = "consumer_complaint_narrative"    # define columne in the dataframe that is important
-relevant_columns = ["product", "issue","sub_issue", "consumer_complaint_narrative"]     # define all relevant columns in the dataframe
+complaint_narrative = "consumer_complaint_narrative"    # DEFINE THE NARRATIVE COLUMN IN CSV FILE !!!
+relevant_columns = ["product", "issue","sub_issue", "consumer_complaint_narrative"]     # DEFINE ALL OTHER RELEVANT COLUMNS IN CSV FILE !!!
+vector_best_words = 25 # DEFINE VALUE OF BEST WORDS ARE PRINTED !!!
+topic_quantity = 10 # DEFINE TOPIC QUANTITY !!!
+
 try:
     stop_words = set(stopwords.words('english'))    # download if stopwords not found
 except LookupError:
     nltk.download('stopwords')
+    stop_words = set(stopwords.words('english'))
 nlp = spacy.load("en_core_web_sm")  # load the language model
-vector_best_words = 25 # define output for most words in vector
-topic_quantity = 10 # define topic quantity
-'''
 
-corpus_dataframe = pd.read_csv(     
-    "costumer_complain_data/complaints_processed.csv",   # define the datafile 
-    sep=",",                 # choose seperator
-    quotechar='"',           # character start and end of quoted field
-    engine="python",         # python parser
-    on_bad_lines="warn",     # warn at bad line interpretation
-)
-
-complaint_narrative = "narrative"    # define columne in the dataframe that is important
-relevant_columns = ["product", "narrative"]     # define all relevant columns in the dataframe
-try:
-    stop_words = set(stopwords.words('english'))    # download if stopwords not found
-except LookupError:
-    nltk.download('stopwords')
-nlp = spacy.load("en_core_web_sm")  # load the language model
-vector_best_words = 25 # define output for most words in vector
-topic_quantity = 10 # define topic quantity
 
 # FUNCTIONS ------------------------------------------------------------------------------------------------------------------
 
@@ -177,7 +161,7 @@ print("--------------------------\n\033[0m")
 
 lemma_texts = corpus_dataframe["lemma_text"]
 
-bow = CountVectorizer(  # define bow parameters
+bow = CountVectorizer(  # define bow (bag_of_words) parameters
     max_df=0.9, # ignore extermly frequent words that have frequency by x%
     min_df=5,   # ignore rare words, has to exist in x files 
     ngram_range=(1,1)   # define n-gram (1,2 = unigram & bigram)
