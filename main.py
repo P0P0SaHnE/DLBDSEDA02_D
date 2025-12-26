@@ -18,25 +18,29 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 # GLOBAL VARIABLES --------------------------------------------------------------------------------------------------------------------
 
-corpus_dataframe = pd.read_csv(     
-    "costumer_complain_data/consumer_complaints.csv",   # DEFINE THE FILE !!!
-    sep=",",                 # choose seperator
-    quotechar='"',           # character start and end of quoted field
-    engine="python",         # python parser
-    on_bad_lines="warn",     # warn at bad line interpretation
-)
+if not os.path.exists("lemma_text.csv"):
 
-complaint_narrative = "consumer_complaint_narrative"    # DEFINE THE NARRATIVE COLUMN IN CSV FILE !!!
-relevant_columns = ["product", "issue","sub_issue", "consumer_complaint_narrative"]     # DEFINE ALL OTHER RELEVANT COLUMNS IN CSV FILE !!!
-vector_best_words = 25 # DEFINE VALUE OF BEST WORDS ARE PRINTED !!!
-topic_quantity = 10 # DEFINE TOPIC QUANTITY !!!
+    corpus_dataframe = pd.read_csv(     
+        "complain_data/consumer_complaints.csv",   # define the file for analyse 
+        sep=",",                 # choose separator
+        quotechar='"',           # character start and end of quoted field
+        engine="python",         # python parser
+        on_bad_lines="warn",     # warn at bad line interpretation
+    )
 
-try:
-    stop_words = set(stopwords.words('english'))    # download if stopwords not found
-except LookupError:
-    nltk.download('stopwords')
-    stop_words = set(stopwords.words('english'))
-nlp = spacy.load("en_core_web_sm")  # load the language model
+    complaint_narrative = "consumer_complaint_narrative"    # define the narrative column in csv file
+    relevant_columns = ["product", "issue","sub_issue", "consumer_complaint_narrative"]     # define all other relevant columns in csv
+    
+
+    try:
+        stop_words = set(stopwords.words('english'))    # download if stopwords not found
+    except LookupError:
+        nltk.download('stopwords')
+        stop_words = set(stopwords.words('english'))
+    nlp = spacy.load("en_core_web_sm")  # load the language model
+
+vector_best_words = 25 # value of the best words in file that will printed
+topic_quantity = 10 # define topic quantity
 
 
 # FUNCTIONS ------------------------------------------------------------------------------------------------------------------
@@ -54,7 +58,7 @@ def clean_text(text):
     for word in words:
         if word not in stop_words:
             cleaned_words.append(word)
-    text = ' '.join(cleaned_words)  # join the single words into text with black space between
+    text = ' '.join(cleaned_words)  # join the single words into text with blank space between
 
     return text
 
@@ -88,7 +92,14 @@ def display_topics(model, feature_names, n_top_words=10):
 print("\033[32m\n--------------------------------------------------------------------------------------------------------")
 print("##         This is the Project for the IU Modul DLBDSEDA02_D with the topic of Data Analysis.         ##")
 print("--------------------------------------------------------------------------------------------------------\n\033[0m")
-print(f"\nThe used Dataframe have {corpus_dataframe.shape[0]} rows and {corpus_dataframe.shape[1]} columns.\n")
+
+if os.path.exists("lemma_text.csv"):
+
+    print(f"\nA lemmatized version was found in File \"lemma_text.csv\". Phase 1 - 3 are \033[31mSKIPPED\033[0m.")
+    print("For the full process erase the file.\n")
+
+else:
+    print(f"\nThe used Dataframe have {corpus_dataframe.shape[0]} rows and {corpus_dataframe.shape[1]} columns.\n")
 
 
 # remove rows with empty value in complaint_narrative, duplicates & irrelevant columns -----------------------------------------
@@ -97,7 +108,7 @@ print("\033[32m\n> Phase 1: Prepare the Dataframe <")
 print("----------------------------------\n\033[0m")
 
 if os.path.exists("lemma_text.csv"):
-    print("Prepared Dataframe found! - Data Preparation \033[31mSKIPPED\033[0m")
+    print("Data Preparation - \033[31mSKIPPED\033[0m")
 
 else:
 
@@ -113,11 +124,11 @@ else:
 
 # text cleaning ----------------------------------------------------------------------------------------------------------------
 
-print("\033[32m\n\n> Phase 2: Text Cleaning <")
+print("\033[32m\n> Phase 2: Text Cleaning <")
 print("--------------------------\n\033[0m")
 
 if os.path.exists("lemma_text.csv"):
-    print("Existing cleaned Text found! - Text Cleaning \033[31mSKIPPED\033[0m")
+    print("Text Cleaning - \033[31mSKIPPED\033[0m")
 
 else:
     print("\t- All letters in lower characters\n\t- Remove all X's in Text\n\t- Remove everything except a - z and white spaces\n\t- Remove Stop Words\n")
@@ -131,10 +142,10 @@ else:
 print("\033[32m\n\n> Phase 3: Tokenizing & Lemmatize <")
 print("-----------------------------------\n\033[0m")
 
-# try to skip the lammatize process with existing lemma file
+# try to skip the lemmatize process with existing lemma file
 try:
     corpus_dataframe = pd.read_csv("lemma_text.csv")
-    print("Existing Lemma File found! - Lemmatization \033[31mSKIPPED\033[0m")
+    print("Lemmatization - \033[31mSKIPPED\033[0m")
 
 except:
     print("No existing Lemma File found!\n")
@@ -162,11 +173,11 @@ print("--------------------------\n\033[0m")
 lemma_texts = corpus_dataframe["lemma_text"]
 
 bow = CountVectorizer(  # define bow (bag_of_words) parameters
-    max_df=0.9, # ignore extermly frequent words that have frequency by x%
-    min_df=5,   # ignore rare words, has to exist in x files 
+    max_df=0.9, # ignore terms that occur in >90% of documents (document frequency)
+    min_df=5,   # keep only terms that occur in at least 5 documents
     ngram_range=(1,1)   # define n-gram (1,2 = unigram & bigram)
 )
-bow_vector = bow.fit_transform(lemma_texts) # create the bow vector & box dictionary
+bow_vector = bow.fit_transform(lemma_texts) # create document-term matrix and build vocabulary
 
 tfidf = TfidfVectorizer(
     max_df=0.9,
@@ -180,7 +191,7 @@ tfidf_vector = tfidf.fit_transform(lemma_texts)     # create the tf-idf vector
 
 print(f"\033[35mBag of Words - Vector (Most {vector_best_words} Words):\033[0m\n") # BoW
 
-word_counts = bow_vector.toarray().sum(axis=0)   # convert to np array and summarize it for every columne
+word_counts = np.asarray(bow_vector.sum(axis=0)).ravel()
 feature_names = bow.get_feature_names_out() # get vocabs from the bow dictionary
 
 top_indices = np.argsort(word_counts)[::-1]   # sort word_counts descending
@@ -196,7 +207,7 @@ for dict_id in top_indices[:vector_best_words]:  # top "vector_best_words" words
 
 print(f"\n\n\033[35mTerm Frequency-Inverse Document Frequency - Vector (Most {vector_best_words} Words):\033[0m\n")    #TF-IDF
 
-tfidf_scores = tfidf_vector.toarray().sum(axis=0)
+tfidf_scores = np.asarray(tfidf_vector.sum(axis=0)).ravel()
 feature_names = tfidf.get_feature_names_out()
 
 top_indices = np.argsort(tfidf_scores)[::-1]
@@ -214,14 +225,10 @@ for dict_id in top_indices[:vector_best_words]:
 
 print("\033[32m\n\n> Phase 5: Topic Analysis <")
 print("---------------------------\n\033[0m")
-'''
-lemma_texts = corpus_dataframe["lemma_text"]
-
-bow = CountVectorizer(max_df=0.9, min_df=5,ngram_range=(1,2))   # define bigramm
-bow_vector = bow.fit_transform(lemma_texts) # new bow vector with bigramms'''
 
 lda = LatentDirichletAllocation(    # define the lda parameters
     topic_quantity,
+    learning_method="batch",
     random_state=42
 )
 
@@ -231,13 +238,12 @@ print(f"\033[35mLatent Dirichlet Allocation - Topic Analysis:\033[0m") # LDA
 display_topics(lda, bow.get_feature_names_out(),8)    # print the lda results
 
 
-nmf = NMF(  # define nfm modell 
+nmf = NMF(  # define nfm model
     topic_quantity,  
     random_state=42
 )
 
 nmf.fit(tfidf_vector)   # train the model with tf-idf vector
-
 print(f"\033[35m\nNon-Negative Matrix Factorization - Topic Analysis:\033[0m") # NMF
 
 display_topics(nmf, tfidf.get_feature_names_out(),8)    # print the nmf results
