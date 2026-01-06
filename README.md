@@ -1,14 +1,4 @@
-# DLBDSEDA02_D
-NLP-based Analysis of Customer Complaint Data
-
-verwendetes datenset https://www.kaggle.com/datasets/kaggle/us-consumer-finance-complaints
-speichern in dir costumer_complaints
-parameter in abschnitt globale varibales anpassen !
-
-python3 -m venv venv
-source venv/bin/activate
-
-# NLP Topic Modeling – Consumer Complaints Analysis
+# DLBDSEDA02_D - NLP Topic Modeling (Consumer Complaints Analysis)
 
 ## Projektbeschreibung
 
@@ -48,6 +38,7 @@ Das Projekt wurde im Rahmen eines universitären Moduls umgesetzt und folgt eine
 Das Programm ist in mehrere logisch getrennte Phasen unterteilt:
 
 1. **Einlesen der Daten**
+   
    Laden des CSV-Datensatzes mit Beschwerdetexten.
 
 2. **Textvorverarbeitung**
@@ -71,6 +62,7 @@ Das Programm ist in mehrere logisch getrennte Phasen unterteilt:
      Für beide Verfahren werden die häufigsten Begriffe pro Topic ausgegeben.
 
 5. **Interpretation der Ergebnisse**
+
    Die extrahierten Topics dienen als explorativer Überblick über die zentralen Beschwerdebereiche.
 
 ---
@@ -98,15 +90,18 @@ python -m spacy download en_core_web_sm
 
 ### 4. Datensatz im Directory "complain_data" speichern
 
-defaultmäßig sollte der folgende Datensatz verwendet werden:
+Defaultmäßig sollte der folgende Datensatz verwendet werden:
 https://www.kaggle.com/datasets/kaggle/us-consumer-finance-complaints
 
 Bei Verwendung eines anderen Datensatz in Form einer CSV muss in der Datei "main.py" die folgenden Werte angepasst werden:
 
-   * corpus_dataframe = pd.read_csv("complain_data/**consumer_complaints.csv**"                 - Zeile 24
-   * complaint_narrative = "**consumer_complaint_narrative**"                                   - Zeile 31
-   * relevant_columns = ["**product", "issue","sub_issue", "consumer_complaint_narrative**"]    - Zeile 32
-
+```bash
+corpus_dataframe = pd.read_csv("complain_data/consumer_complaints.csv"                 # Zeile 24
+complaint_narrative = "consumer_complaint_narrative"                                   # Zeile 31
+relevant_columns = ["product", "issue","sub_issue", "consumer_complaint_narrative"]    # Zeile 32
+```
+   
+   
 ### 5. Programm ausführen
 
 ```bash
