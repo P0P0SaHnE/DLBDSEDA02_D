@@ -95,7 +95,7 @@ print("-------------------------------------------------------------------------
 
 if os.path.exists("lemma_text.csv"):
 
-    print(f"\nA lemmatized version was found in File \"lemma_text.csv\". Phase 1 - 3 are \033[31mSKIPPED\033[0m.")
+    print(f"\nA lemmatized version was found in file \"lemma_text.csv\". Phase 1 - 3 are \033[31mSKIPPED\033[0m.")
     print("For the full process erase the file.\n")
 
 else:
@@ -119,12 +119,12 @@ else:
     corpus_dataframe = corpus_dataframe.dropna(subset=[complaint_narrative])    # remove all rows with empty field in complaint_narrative
     corpus_dataframe = corpus_dataframe.drop_duplicates()   # remove duplicate rows
 
-    print(f"The Dataframe have {corpus_dataframe.shape[0]} rows and {corpus_dataframe.shape[1]} columns after the preparation.\n")
+    print(f"The Dataframe have {corpus_dataframe.shape[0]} rows and {corpus_dataframe.shape[1]} columns after the preparation.")
 
 
 # text cleaning ----------------------------------------------------------------------------------------------------------------
 
-print("\033[32m\n> Phase 2: Text Cleaning <")
+print("\033[32m\n\n> Phase 2: Text Cleaning <")
 print("--------------------------\n\033[0m")
 
 if os.path.exists("lemma_text.csv"):
@@ -145,7 +145,7 @@ print("-----------------------------------\n\033[0m")
 # try to skip the lemmatize process with existing lemma file
 try:
     corpus_dataframe = pd.read_csv("lemma_text.csv")
-    print("Lemmatization - \033[31mSKIPPED\033[0m")
+    print("Tokenizing & Lemmatization - \033[31mSKIPPED\033[0m")
 
 except:
     print("No existing Lemma File found!\n")
@@ -205,7 +205,7 @@ for dict_id in top_indices[:vector_best_words]:  # top "vector_best_words" words
     number += 1
 
 
-print(f"\n\n\033[35mTerm Frequency-Inverse Document Frequency - Vector (Most {vector_best_words} Words):\033[0m\n")    #TF-IDF
+print(f"\n\n\033[35mTerm Frequency - Inverse Document Frequency - Vector (Most {vector_best_words} Words):\033[0m\n")    #TF-IDF
 
 tfidf_scores = np.asarray(tfidf_vector.sum(axis=0)).ravel()
 feature_names = tfidf.get_feature_names_out()
