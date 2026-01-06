@@ -47,19 +47,22 @@ Das Programm ist in mehrere logisch getrennte Phasen unterteilt:
    * Entfernen von Sonderzeichen und Zahlen
    * Entfernen von Stoppwörtern und "Schwärzungen" (xxx)
    * Tokenisierung und Lemmatisierung
-     Die bereinigten Texte werden zwischengespeichert, um unnötige Neuberechnungen zu vermeiden.
+   
+   Die bereinigten Texte werden zwischengespeichert, um unnötige Neuberechnungen zu vermeiden.
 
 3. **Vektorisierung der Texte**
 
    * Bag-of-Words (CountVectorizer)
    * TF-IDF (TfidfVectorizer)
-     Die Ergebnisse beider Verfahren werden miteinander verglichen.
+   
+   Die Ergebnisse beider Verfahren werden miteinander verglichen.
 
 4. **Semantische Analyse / Topic Modeling**
 
    * Latent Dirichlet Allocation (LDA)
    * Non-negative Matrix Factorization (NMF)
-     Für beide Verfahren werden die häufigsten Begriffe pro Topic ausgegeben.
+   
+   Für beide Verfahren werden die häufigsten Begriffe pro Topic ausgegeben.
 
 5. **Interpretation der Ergebnisse**
 
